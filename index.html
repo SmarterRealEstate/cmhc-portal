@@ -1406,51 +1406,53 @@ function shareListing(id, btn) {
 }
 
 function showSharePanel(id, url, shareText, btn) {
-  // Remove any existing panel
-  const old = document.getElementById(`share-panel-${id}`);
-  if (old) { old.remove(); return; }
+  // Remove any existing share modal
+  const existing = document.getElementById('share-modal-overlay');
+  if (existing) { existing.remove(); return; }
 
-  const panel = document.createElement('div');
-  panel.id = `share-panel-${id}`;
-  panel.className = 'share-panel open';
-  panel.style.cssText = 'position:fixed;z-index:9999;';
+  const overlay = document.createElement('div');
+  overlay.id = 'share-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
 
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#1e2d45;border-radius:16px;padding:1.5rem;min-width:260px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);';
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:1rem;font-weight:700;color:#fff;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid rgba(255,255,255,0.1);';
+  title.textContent = '🔗 Share this listing';
+  box.appendChild(title);
+
+  const copyUrl = url;
   const items = [
-    { icon: '📋', label: 'Copy link', action: () => { navigator.clipboard.writeText(url).then(() => showToast('Link copied!')).catch(() => { prompt('Copy link:', url); }); panel.remove(); } },
-    { icon: '💬', label: 'WhatsApp', action: () => { window.open(`https://wa.me/?text=${encodeURIComponent(shareText + '\n' + url)}`, '_blank'); panel.remove(); } },
-    { icon: '📧', label: 'Email', action: () => { const s = encodeURIComponent(`Investment Opportunity: ${shareText.split('\n')[0]}`); const b = encodeURIComponent(shareText + '\n\n' + url); window.open(`mailto:?subject=${s}&body=${b}`); panel.remove(); } },
-    { icon: '💼', label: 'LinkedIn', action: () => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank'); panel.remove(); } },
+    { icon: '📋', label: 'Copy link', action: () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(copyUrl).then(() => { overlay.remove(); showToast('Link copied!'); }).catch(() => { prompt('Copy this link:', copyUrl); overlay.remove(); });
+      } else { prompt('Copy this link:', copyUrl); overlay.remove(); }
+    }},
+    { icon: '💬', label: 'WhatsApp', action: () => { window.open(`https://wa.me/?text=${encodeURIComponent(shareText + '\n' + copyUrl)}`, '_blank'); overlay.remove(); } },
+    { icon: '📧', label: 'Email', action: () => { window.open(`mailto:?subject=${encodeURIComponent('Investment Opportunity: ' + shareText.split('\n')[0])}&body=${encodeURIComponent(shareText + '\n\n' + copyUrl)}`); overlay.remove(); } },
+    { icon: '💼', label: 'LinkedIn', action: () => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(copyUrl)}`, '_blank'); overlay.remove(); } },
   ];
 
   items.forEach(item => {
     const el = document.createElement('button');
-    el.className = 'share-panel-item';
-    el.innerHTML = `<span class="share-icon">${item.icon}</span>${item.label}`;
+    el.style.cssText = 'display:flex;align-items:center;gap:0.75rem;width:100%;padding:0.75rem 1rem;margin-bottom:0.4rem;background:rgba(255,255,255,0.06);border:none;border-radius:10px;color:#c8d4e6;font-size:0.9rem;font-weight:600;cursor:pointer;text-align:left;';
+    el.innerHTML = `<span style="font-size:1.1rem">${item.icon}</span>${item.label}`;
+    el.onmouseover = () => { el.style.background = 'rgba(255,255,255,0.12)'; el.style.color = '#fff'; };
+    el.onmouseout = () => { el.style.background = 'rgba(255,255,255,0.06)'; el.style.color = '#c8d4e6'; };
     el.onclick = (e) => { e.stopPropagation(); item.action(); };
-    panel.appendChild(el);
+    box.appendChild(el);
   });
 
-  // Position relative to button, attached to body so it's never clipped
-  document.body.appendChild(panel);
-  const rect = btn.getBoundingClientRect();
-  // Re-measure after insert so offsetHeight is correct
-  requestAnimationFrame(() => {
-    const h = panel.offsetHeight;
-    const spaceAbove = rect.top;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    // Show above if enough room, otherwise below
-    if (spaceAbove >= h + 8 || spaceAbove > spaceBelow) {
-      panel.style.top = (rect.top - h - 8) + 'px';
-    } else {
-      panel.style.top = (rect.bottom + 8) + 'px';
-    }
-    panel.style.left = Math.min(Math.max(4, rect.left), window.innerWidth - panel.offsetWidth - 4) + 'px';
-  });
+  const cancel = document.createElement('button');
+  cancel.style.cssText = 'display:block;width:100%;padding:0.6rem;margin-top:0.25rem;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#8899aa;font-size:0.85rem;cursor:pointer;';
+  cancel.textContent = 'Cancel';
+  cancel.onclick = () => overlay.remove();
+  box.appendChild(cancel);
 
-  // Close on outside click
-  setTimeout(() => document.addEventListener('click', function close(e) {
-    if (!panel.contains(e.target) && e.target !== btn) { panel.remove(); document.removeEventListener('click', close); }
-  }), 0);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
 function showToast(msg) {
