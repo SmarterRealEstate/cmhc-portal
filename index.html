@@ -1403,25 +1403,32 @@ function shareListing(id, btn) {
 
   if (typeof fbq !== 'undefined') fbq('trackCustom', 'ShareListing', { content_ids: [id] });
 
-  // Try native share sheet first (mobile + modern desktop)
+  // Try native share sheet first — fall through to panel on any error (e.g. iframe block)
   if (navigator.share) {
-    navigator.share({ title: l.name, text: shareText, url }).catch(() => {});
+    navigator.share({ title: l.name, text: shareText, url }).then(() => {}).catch((err) => {
+      if (err && err.name !== 'AbortError') showSharePanel(id, url, shareText, btn);
+    });
     return;
   }
 
-  // Fallback: show share panel
-  const existing = document.getElementById(`share-panel-${id}`);
-  if (existing) { existing.classList.toggle('open'); return; }
+  showSharePanel(id, url, shareText, btn);
+}
+
+function showSharePanel(id, url, shareText, btn) {
+  // Remove any existing panel
+  const old = document.getElementById(`share-panel-${id}`);
+  if (old) { old.remove(); return; }
 
   const panel = document.createElement('div');
   panel.id = `share-panel-${id}`;
   panel.className = 'share-panel open';
+  panel.style.cssText = 'position:fixed;z-index:9999;';
 
   const items = [
-    { icon: '📋', label: 'Copy link', action: () => { navigator.clipboard.writeText(url).then(() => showToast('Link copied!')); panel.classList.remove('open'); } },
-    { icon: '💬', label: 'WhatsApp', action: () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText + '\n' + url)}`, '_blank') },
-    { icon: '📧', label: 'Email', action: () => { const s = encodeURIComponent(`Investment Opportunity: ${l.name}`); const b = encodeURIComponent(shareText + '\n\n' + url); window.open(`mailto:?subject=${s}&body=${b}`); } },
-    { icon: '💼', label: 'LinkedIn', action: () => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank') },
+    { icon: '📋', label: 'Copy link', action: () => { navigator.clipboard.writeText(url).then(() => showToast('Link copied!')).catch(() => { prompt('Copy link:', url); }); panel.remove(); } },
+    { icon: '💬', label: 'WhatsApp', action: () => { window.open(`https://wa.me/?text=${encodeURIComponent(shareText + '\n' + url)}`, '_blank'); panel.remove(); } },
+    { icon: '📧', label: 'Email', action: () => { const s = encodeURIComponent(`Investment Opportunity: ${shareText.split('\n')[0]}`); const b = encodeURIComponent(shareText + '\n\n' + url); window.open(`mailto:?subject=${s}&body=${b}`); panel.remove(); } },
+    { icon: '💼', label: 'LinkedIn', action: () => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank'); panel.remove(); } },
   ];
 
   items.forEach(item => {
@@ -1432,12 +1439,19 @@ function shareListing(id, btn) {
     panel.appendChild(el);
   });
 
-  btn.style.position = 'relative';
-  btn.appendChild(panel);
+  // Position above the button, attached to body so it's never clipped
+  document.body.appendChild(panel);
+  const rect = btn.getBoundingClientRect();
+  panel.style.left = Math.max(4, rect.left) + 'px';
+  panel.style.top = (rect.top - panel.offsetHeight - 8) + 'px';
+  // Re-measure after insert in case offsetHeight was 0
+  requestAnimationFrame(() => {
+    panel.style.top = (rect.top + window.scrollY - panel.offsetHeight - 8) + 'px';
+  });
 
   // Close on outside click
   setTimeout(() => document.addEventListener('click', function close(e) {
-    if (!panel.contains(e.target)) { panel.classList.remove('open'); document.removeEventListener('click', close); }
+    if (!panel.contains(e.target) && e.target !== btn) { panel.remove(); document.removeEventListener('click', close); }
   }), 0);
 }
 
