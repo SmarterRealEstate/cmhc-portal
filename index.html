@@ -467,7 +467,6 @@ src="https://www.facebook.com/tr?id=4093978017293385&ev=PageView&noscript=1"/></
     </div>
     <span class="nav-link" onclick="scrollToCalc()">Calculator</span>
     <span class="nav-link" onclick="scrollToReg()">Get Notified</span>
-    <span class="nav-link" onclick="openSettings()">⚙ Setup</span>
   </div>
 </header>
 
@@ -1402,14 +1401,6 @@ function shareListing(id, btn) {
   const shareText = `${l.name} — ${l.location}\n${price} · DSCR: ${l.dscr || '—'} · Down: ${l.down || '—'}\nCMHC MLI Select Investment via Jeff Villeneuve, Meta Realty Inc., Brokerage`;
 
   if (typeof fbq !== 'undefined') fbq('trackCustom', 'ShareListing', { content_ids: [id] });
-
-  // Try native share sheet first — fall through to panel on any error (e.g. iframe block)
-  if (navigator.share) {
-    navigator.share({ title: l.name, text: shareText, url }).then(() => {}).catch((err) => {
-      if (err && err.name !== 'AbortError') showSharePanel(id, url, shareText, btn);
-    });
-    return;
-  }
 
   showSharePanel(id, url, shareText, btn);
 }
