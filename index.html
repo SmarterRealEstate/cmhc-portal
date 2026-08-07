@@ -245,10 +245,15 @@ src="https://www.facebook.com/tr?id=4093978017293385&ev=PageView&noscript=1"/></
     cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; gap: 5px;
   }
   .btn-primary { background: var(--red); color: var(--white); }
-  .btn-share { background: rgba(255,255,255,0.06); color: var(--grey); border: 1px solid rgba(255,255,255,0.12); }
+  .btn-share { background: rgba(255,255,255,0.06); color: var(--grey); border: 1px solid rgba(255,255,255,0.12); position: relative; }
   .btn-share:hover { background: rgba(255,255,255,0.12); color: var(--white); }
   .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--green); color: #fff; padding: 0.55rem 1.2rem; border-radius: 8px; font-size: 0.85rem; font-weight: 700; opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 99999; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .share-panel { position: absolute; bottom: calc(100% + 8px); left: 0; background: #1e2d45; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 0.4rem; display: none; flex-direction: column; gap: 2px; min-width: 180px; z-index: 999; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+  .share-panel.open { display: flex; }
+  .share-panel-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.75rem; border-radius: 7px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--grey); transition: background 0.15s, color 0.15s; white-space: nowrap; border: none; background: none; width: 100%; text-align: left; }
+  .share-panel-item:hover { background: rgba(255,255,255,0.08); color: var(--white); }
+  .share-panel-item .share-icon { font-size: 1rem; width: 1.2rem; text-align: center; }
   .btn-primary:hover { background: var(--red-dark); }
   .btn-secondary {
     background: transparent; color: var(--grey);
@@ -1111,7 +1116,7 @@ function renderGrid() {
           ${l.docs.length ? `📁 ${l.docs.length} doc${l.docs.length>1?'s':''}` : 'View Details'}
         </button>
         ${hasProforma ? `<button class="btn btn-proforma" onclick="event.stopPropagation();openModal(${l.id}, true)">▸ Proforma</button>` : ''}
-        ${isAvail ? `<button class="btn btn-share" onclick="event.stopPropagation();shareListing(${l.id})" title="Copy shareable link">🔗 Share</button>` : ''}
+        ${isAvail ? `<button class="btn btn-share" onclick="event.stopPropagation();shareListing(${l.id}, this)" title="Share this listing">🔗 Share</button>` : ''}
         ${isAvail ? `<button class="btn btn-primary" onclick="event.stopPropagation();scrollToReg()" style="margin-left:auto">Inquire</button>` : ''}
       </div>
     </div>`;
@@ -1389,12 +1394,51 @@ async function submitRegistration() {
 }
 
 // ─── SHARE ─────────────────────────────────────────────────────
-function shareListing(id) {
+function shareListing(id, btn) {
+  const l = LISTINGS.find(l => l.id === id);
+  if (!l) return;
   const url = `https://smarterrealestate.github.io/cmhc-portal/?listing=${id}`;
-  navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard!')).catch(() => {
-    prompt('Copy this link:', url);
-  });
+  const price = l.price > 0 ? fmt$(l.price) : 'Price on request';
+  const shareText = `${l.name} — ${l.location}\n${price} · DSCR: ${l.dscr || '—'} · Down: ${l.down || '—'}\nCMHC MLI Select Investment via Jeff Villeneuve, Meta Realty Inc., Brokerage`;
+
   if (typeof fbq !== 'undefined') fbq('trackCustom', 'ShareListing', { content_ids: [id] });
+
+  // Try native share sheet first (mobile + modern desktop)
+  if (navigator.share) {
+    navigator.share({ title: l.name, text: shareText, url }).catch(() => {});
+    return;
+  }
+
+  // Fallback: show share panel
+  const existing = document.getElementById(`share-panel-${id}`);
+  if (existing) { existing.classList.toggle('open'); return; }
+
+  const panel = document.createElement('div');
+  panel.id = `share-panel-${id}`;
+  panel.className = 'share-panel open';
+
+  const items = [
+    { icon: '📋', label: 'Copy link', action: () => { navigator.clipboard.writeText(url).then(() => showToast('Link copied!')); panel.classList.remove('open'); } },
+    { icon: '💬', label: 'WhatsApp', action: () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText + '\n' + url)}`, '_blank') },
+    { icon: '📧', label: 'Email', action: () => { const s = encodeURIComponent(`Investment Opportunity: ${l.name}`); const b = encodeURIComponent(shareText + '\n\n' + url); window.open(`mailto:?subject=${s}&body=${b}`); } },
+    { icon: '💼', label: 'LinkedIn', action: () => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank') },
+  ];
+
+  items.forEach(item => {
+    const el = document.createElement('button');
+    el.className = 'share-panel-item';
+    el.innerHTML = `<span class="share-icon">${item.icon}</span>${item.label}`;
+    el.onclick = (e) => { e.stopPropagation(); item.action(); };
+    panel.appendChild(el);
+  });
+
+  btn.style.position = 'relative';
+  btn.appendChild(panel);
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', function close(e) {
+    if (!panel.contains(e.target)) { panel.classList.remove('open'); document.removeEventListener('click', close); }
+  }), 0);
 }
 
 function showToast(msg) {
