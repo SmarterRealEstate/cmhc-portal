@@ -1430,14 +1430,21 @@ function showSharePanel(id, url, shareText, btn) {
     panel.appendChild(el);
   });
 
-  // Position above the button, attached to body so it's never clipped
+  // Position relative to button, attached to body so it's never clipped
   document.body.appendChild(panel);
   const rect = btn.getBoundingClientRect();
-  panel.style.left = Math.max(4, rect.left) + 'px';
-  panel.style.top = (rect.top - panel.offsetHeight - 8) + 'px';
-  // Re-measure after insert in case offsetHeight was 0
+  // Re-measure after insert so offsetHeight is correct
   requestAnimationFrame(() => {
-    panel.style.top = (rect.top + window.scrollY - panel.offsetHeight - 8) + 'px';
+    const h = panel.offsetHeight;
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    // Show above if enough room, otherwise below
+    if (spaceAbove >= h + 8 || spaceAbove > spaceBelow) {
+      panel.style.top = (rect.top - h - 8) + 'px';
+    } else {
+      panel.style.top = (rect.bottom + 8) + 'px';
+    }
+    panel.style.left = Math.min(Math.max(4, rect.left), window.innerWidth - panel.offsetWidth - 4) + 'px';
   });
 
   // Close on outside click
