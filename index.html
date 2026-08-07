@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CMHC MLI Select Investor Portal — Smarter Real Estate</title>
+<!-- Meta Pixel — replace 4093978017293385 with your actual Pixel ID -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '4093978017293385');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=4093978017293385&ev=PageView&noscript=1"/></noscript>
 <style>
   :root {
     --navy: #1C263B;
@@ -233,6 +245,10 @@
     cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; gap: 5px;
   }
   .btn-primary { background: var(--red); color: var(--white); }
+  .btn-share { background: rgba(255,255,255,0.06); color: var(--grey); border: 1px solid rgba(255,255,255,0.12); }
+  .btn-share:hover { background: rgba(255,255,255,0.12); color: var(--white); }
+  .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--green); color: #fff; padding: 0.55rem 1.2rem; border-radius: 8px; font-size: 0.85rem; font-weight: 700; opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 99999; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .btn-primary:hover { background: var(--red-dark); }
   .btn-secondary {
     background: transparent; color: var(--grey);
@@ -1095,6 +1111,7 @@ function renderGrid() {
           ${l.docs.length ? `📁 ${l.docs.length} doc${l.docs.length>1?'s':''}` : 'View Details'}
         </button>
         ${hasProforma ? `<button class="btn btn-proforma" onclick="event.stopPropagation();openModal(${l.id}, true)">▸ Proforma</button>` : ''}
+        ${isAvail ? `<button class="btn btn-share" onclick="event.stopPropagation();shareListing(${l.id})" title="Copy shareable link">🔗 Share</button>` : ''}
         ${isAvail ? `<button class="btn btn-primary" onclick="event.stopPropagation();scrollToReg()" style="margin-left:auto">Inquire</button>` : ''}
       </div>
     </div>`;
@@ -1105,6 +1122,7 @@ function renderGrid() {
 function openModal(id, showProforma = false) {
   const l = LISTINGS.find(l => l.id === id);
   if (!l) return;
+  if (typeof fbq !== 'undefined') fbq('track', 'ViewContent', { content_name: l.name, content_ids: [id], content_type: 'product' });
 
   const isAvail = l.status === 'Available';
   const statusClass = isAvail ? 'badge-available' : (l.status === 'Sold Firm' ? 'badge-sold-firm' : 'badge-sold');
@@ -1363,6 +1381,7 @@ async function submitRegistration() {
 
     document.getElementById('reg-form').style.display = 'none';
     document.getElementById('reg-success').style.display = 'block';
+    if (typeof fbq !== 'undefined') fbq('track', 'Lead');
   } catch(e) {
     console.error(e);
     btn.textContent = 'Try Again'; btn.disabled = false;
@@ -1370,6 +1389,22 @@ async function submitRegistration() {
 }
 
 // ─── SHARE ─────────────────────────────────────────────────────
+function shareListing(id) {
+  const url = `https://smarterrealestate.github.io/cmhc-portal/?listing=${id}`;
+  navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard!')).catch(() => {
+    prompt('Copy this link:', url);
+  });
+  if (typeof fbq !== 'undefined') fbq('trackCustom', 'ShareListing', { content_ids: [id] });
+}
+
+function showToast(msg) {
+  let t = document.getElementById('share-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'share-toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
 function shareListingByEmail(id) {
   const l = LISTINGS.find(l => l.id === id);
   if (!l) return;
@@ -1386,6 +1421,11 @@ function scrollToReg() { document.getElementById('reg-section').scrollIntoView({
 // ─── INIT ──────────────────────────────────────────────────────
 initStats();
 renderGrid();
+
+// URL deep linking — ?listing=ID auto-opens that listing's modal
+const _urlParams = new URLSearchParams(window.location.search);
+const _deepId = parseInt(_urlParams.get('listing'));
+if (_deepId) setTimeout(() => openModal(_deepId), 400);
 
 // Simulate viewer count
 let viewers = Math.floor(Math.random() * 12) + 8;
