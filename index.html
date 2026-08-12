@@ -1204,7 +1204,7 @@ function renderGrid() {
             <div class="metric-value" style="font-size:0.82rem">${l.completion || '—'}</div>
           </div>
         </div>
-        ${l.incentives.length ? `<div class="incentive-tags">${l.incentives.filter(i => i !== 'Zero Down').map(i => `<span class="incentive-tag">${i}</span>`).join('')}</div>` : ''}
+        ${(() => { const inc = Array.isArray(l.incentives) ? l.incentives : (l.incentives ? String(l.incentives).split(',').map(s=>s.trim()).filter(Boolean) : []); return inc.filter(i=>i!=='Zero Down').length ? `<div class="incentive-tags">${inc.filter(i=>i!=='Zero Down').map(i=>`<span class="incentive-tag">${i}</span>`).join('')}</div>` : ''; })()}
       </div>
       <div class="card-footer">
         <button class="btn btn-secondary" onclick="event.stopPropagation();openModal(${l.id})">
