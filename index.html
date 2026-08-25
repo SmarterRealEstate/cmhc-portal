@@ -1076,6 +1076,12 @@ LISTINGS.forEach(l => {
   if (!l.completion) l.completion = l.completion_date || null;
   if (!l.type)       l.type       = l.property_type || null;
   if (!l.docs)       l.docs       = l.documents || [];
+  // Normalize each document's field names (API sends web_view_link/mime_type, portal uses url/type)
+  l.docs = l.docs.map(d => ({
+    ...d,
+    url:  d.url  || d.web_view_link || (d.file_id ? `https://drive.google.com/file/d/${d.file_id}/view` : undefined),
+    type: d.type || d.mime_type || ''
+  }));
   if (!Array.isArray(l.incentives)) {
     l.incentives = l.incentives ? String(l.incentives).split(',').map(s => s.trim()).filter(Boolean) : [];
   }
