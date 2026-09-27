@@ -1546,8 +1546,8 @@ function closeSettings(e) {
 
 // ─── STATS ─────────────────────────────────────────────────────
 function initStats() {
-  const avail = LISTINGS.filter(l => l.status === 'Available').length;
-  const sold = LISTINGS.filter(l => l.status !== 'Available').length;
+  const avail = LISTINGS.filter(l => !/sold/i.test(l.status || '')).length;
+  const sold = LISTINGS.filter(l => /sold/i.test(l.status || '')).length;
   const volume = LISTINGS.filter(l => l.price > 0).reduce((s, l) => s + l.price, 0);
 
   document.getElementById('stat-available').textContent = avail;
@@ -1579,7 +1579,7 @@ function getFilteredListings() {
   return LISTINGS.filter(l => {
     const matchesFilter =
       currentFilter === 'all' ||
-      (currentFilter === 'available' && l.status === 'Available') ||
+      (currentFilter === 'available' && !/sold/i.test(l.status || '')) ||
       (currentFilter === 'sold' && (l.status === 'Sold' || l.status === 'Sold Firm'));
     const matchesSearch = !searchQuery ||
       l.name.toLowerCase().includes(searchQuery) ||
@@ -1621,7 +1621,7 @@ function renderGrid() {
   }
 
   grid.innerHTML = listings.map(l => {
-    const isAvail = l.status === 'Available';
+    const isAvail = !/sold/i.test(l.status || '');
     const statusClass = isAvail ? 'badge-available' : (l.status === 'Sold Firm' ? 'badge-sold-firm' : 'badge-sold');
     const price = l.price > 0 ? fmt$(l.price) : null;
     const dscr = fmtDscr(l.dscr);
@@ -1673,7 +1673,7 @@ function openModal(id, showProforma = false) {
   if (!l) return;
   if (typeof fbq !== 'undefined') fbq('track', 'ViewContent', { content_name: l.name, content_ids: [id], content_type: 'product' });
 
-  const isAvail = l.status === 'Available';
+  const isAvail = !/sold/i.test(l.status || '');
   const statusClass = isAvail ? 'badge-available' : (l.status === 'Sold Firm' ? 'badge-sold-firm' : 'badge-sold');
   const price = l.price > 0 ? fmt$(l.price) : null;
   const dscr = fmtDscr(l.dscr);
